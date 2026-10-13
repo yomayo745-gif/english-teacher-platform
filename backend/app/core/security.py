@@ -19,6 +19,17 @@ from app.core.database import get_db
 
 security_bearer = HTTPBearer(auto_error=False)
 
+# In-memory storage for short magic link codes
+MAGIC_CODES: Dict[str, str] = {}
+
+def create_magic_code(token: str) -> str:
+    code = secrets.token_hex(4)
+    MAGIC_CODES[code] = token
+    return code
+
+def get_magic_token(code: str) -> Optional[str]:
+    return MAGIC_CODES.get(code)
+
 # In-memory rate limiting dictionary for failed logins
 FAILED_LOGIN_ATTEMPTS: Dict[str, List[float]] = {}
 MAX_FAILED_ATTEMPTS = 5

@@ -87,8 +87,39 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": "Something went wrong. Please try again."}
     )
 
+# Magic short link redirect for teacher full-screen login
+from fastapi.responses import FileResponse, HTMLResponse
+from app.core.security import get_magic_token
+
+@app.get("/m/{code}", response_class=HTMLResponse, include_in_schema=False)
+async def magic_login_redirect(code: str):
+    token = get_magic_token(code)
+    if not token:
+        return HTMLResponse(
+            "<!DOCTYPE html><html><body style='font-family:sans-serif;text-align:center;padding:50px;'>"
+            "<h2>⚠️ Havola eskirgan yoki topilmadi</h2>"
+            "<p>Iltimos, Telegram botdan yangi havola oling (/start yoki /admin).</p>"
+            "</body></html>",
+            status_code=404
+        )
+    return HTMLResponse(f"""<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Kirilmoqda...</title></head>
+<body style="font-family:sans-serif;text-align:center;padding:50px;background:#f8fafc;color:#1e293b;">
+  <div style="max-width:400px;margin:100px auto;background:#fff;padding:30px;border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,0.05);border:1px solid #e2e8f0;">
+    <h3 style="margin-top:0;">✅ O‘qituvchi paneliga kirilmoqda...</h3>
+    <p style="font-size:13px;color:#64748b;">Brauzerda to‘liq ekran ochilmoqda, kuting...</p>
+  </div>
+  <script>
+    try {{
+      localStorage.setItem('token', '{token}');
+    }} catch (e) {{}}
+    window.location.replace('/admin');
+  </script>
+</body>
+</html>""")
+
 # Mount frontend SPA if dist exists
-from fastapi.responses import FileResponse
 FRONTEND_DIST = settings.BASE_DIR / "frontend" / "dist"
 if FRONTEND_DIST.exists():
     assets_dir = FRONTEND_DIST / "assets"

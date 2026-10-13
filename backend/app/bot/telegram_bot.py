@@ -12,7 +12,7 @@ from sqlalchemy import select, and_, func
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.core.i18n import get_bot_text, normalize_language_code
-from app.core.security import create_access_token
+from app.core.security import create_access_token, create_magic_code
 from app.models.user import User
 from app.models.submission import Submission
 from app.models.assignment import Assignment
@@ -44,7 +44,7 @@ def is_https_url(url: Optional[str]) -> bool:
 
 # --- Keyboards ---
 
-def get_role_keyboard(telegram_id: int, lang: str = "uz", admin_token: Optional[str] = None) -> InlineKeyboardMarkup:
+def get_role_keyboard(telegram_id: int, lang: str = "uz", admin_url_override: Optional[str] = None) -> InlineKeyboardMarkup:
     """
     Returns role-based inline keyboard as strictly specified:
     Admin:
@@ -57,7 +57,7 @@ def get_role_keyboard(telegram_id: int, lang: str = "uz", admin_token: Optional[
     buttons = []
 
     student_url = settings.student_url
-    admin_url = settings.admin_url
+    target_admin_url = admin_url_override or settings.admin_url
 
     # Button 1: Student Panel
     btn_stu_text = get_bot_text("btn_student_panel", lang)
@@ -72,9 +72,8 @@ def get_role_keyboard(telegram_id: int, lang: str = "uz", admin_token: Optional[
 
     # Button 2: Admin Panel (DIRECT URL button: opens browser in FULL SCREEN on PC)
     if is_admin:
-        admin_full_url = f"{admin_url}?token={admin_token}" if admin_token else admin_url
         buttons.append([
-            InlineKeyboardButton(text="💻 " + get_bot_text("btn_admin_panel", lang) + " (PC / To‘liq ekran)", url=admin_full_url)
+            InlineKeyboardButton(text="💻 " + get_bot_text("btn_admin_panel", lang) + " (PC / To‘liq ekran)", url=target_admin_url)
         ])
 
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -165,29 +164,29 @@ async def handle_start(message: types.Message):
         # 1. Greeting message from i18n
         greeting_text = get_bot_text("greeting", lang)
 
-        admin_token = None
+        admin_url_for_user = settings.admin_url
         if role == "ADMIN" and user:
             admin_token = create_access_token(
                 data={"sub": user.id, "role": "ADMIN", "telegram_id": user.telegram_id},
                 expires_delta=timedelta(days=30)
             )
-
-        admin_full_url = f"{settings.admin_url}?token={admin_token}" if admin_token else settings.admin_url
+            short_code = create_magic_code(admin_token)
+            admin_url_for_user = f"{settings.BASE_URL}/m/{short_code}"
 
         extra_links = ""
         if role == "ADMIN":
             extra_links += (
-                f"\n\n💻 <b>O‘qituvchi boshqaruv paneli (Kompyuterda to‘liq ekranda ochish uchun):</b>\n"
-                f"Vazifa berish va tekshirish kompyuterda qulay bo‘lgani uchun quyidagi havolani bosing:\n"
-                f"👉 <a href=\"{admin_full_url}\">{admin_full_url}</a>\n"
-                f"\n<i>(Tugmani yoki havolani bossangiz, kompyuteringiz brauzerida to‘liq ekranda ochiladi)</i>"
+                f"\n\n💻 <b>O‘qituvchi paneli (Kompyuter uchun):</b>\n"
+                f"Pastdagi <b>«💻 Admin paneli»</b> tugmasini bosing yoki quyidagi qisqa havolani bosing:\n"
+                f"👉 <a href=\"{admin_url_for_user}\"><b>[ 💻 O‘qituvchi Panelini Ochish ]</b></a>\n"
+                f"Havola: <code>{admin_url_for_user}</code>"
             )
         elif not is_https_url(settings.WEBAPP_URL):
             hint = get_bot_text("local_link_hint", lang)
             extra_links += f"\n\n🎓 <b>{get_bot_text('btn_student_panel', lang)}:</b>\n{settings.WEBAPP_URL}\n\n<i>({hint})</i>"
 
         full_message = greeting_text + extra_links
-        reply_markup = get_role_keyboard(user_tg_id, lang, admin_token=admin_token)
+        reply_markup = get_role_keyboard(user_tg_id, lang, admin_url_override=admin_url_for_user)
 
         await message.answer(full_message, reply_markup=reply_markup, parse_mode="HTML")
 
@@ -207,20 +206,22 @@ async def handle_admin_command(message: types.Message):
         return
 
     user, role = await resolve_user(message.from_user)
-    admin_token = None
+    admin_url_for_user = settings.admin_url
     if user:
         admin_token = create_access_token(
             data={"sub": user.id, "role": "ADMIN", "telegram_id": user.telegram_id},
             expires_delta=timedelta(days=30)
         )
-    admin_full_url = f"{settings.admin_url}?token={admin_token}" if admin_token else settings.admin_url
+        short_code = create_magic_code(admin_token)
+        admin_url_for_user = f"{settings.BASE_URL}/m/{short_code}"
 
-    kb = get_role_keyboard(message.from_user.id, lang, admin_token=admin_token)
+    kb = get_role_keyboard(message.from_user.id, lang, admin_url_override=admin_url_for_user)
     await message.answer(
         f"💻 <b>O‘qituvchi Boshqaruv Paneli (PC / Brauzer):</b>\n\n"
-        f"Kompyuteringizda qulay va to‘liq ekranda vazifa berish uchun quyidagi havolani bosing:\n\n"
-        f"👉 <a href=\"{admin_full_url}\">{admin_full_url}</a>\n\n"
-        f"<i>(Kompyuteringizda ushbu havolani ochsangiz, to‘g‘ridan-to‘g‘ri hech qanday login kiritmasdan o‘qituvchi paneliga kirasiz)</i>",
+        f"Kompyuteringizda to‘liq ekranda ishlash uchun quyidagi havolani bosing:\n"
+        f"👉 <a href=\"{admin_url_for_user}\"><b>[ 💻 O‘qituvchi Panelini Ochish ]</b></a>\n\n"
+        f"Qisqa havola: <code>{admin_url_for_user}</code>\n\n"
+        f"<i>(Tugmani yoki havolani bossangiz, kompyuteringiz brauzerida to‘liq ekranda ochiladi)</i>",
         reply_markup=kb,
         parse_mode="HTML"
     )

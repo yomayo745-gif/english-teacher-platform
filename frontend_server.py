@@ -60,6 +60,14 @@ async def proxy_uploads(path: str, request: Request):
     except Exception as e:
         return Response(content=str(e), status_code=502)
 
+@app.get("/m/{code}")
+async def proxy_magic_link(code: str):
+    try:
+        rp = await client.get(f"/m/{code}")
+        return Response(content=rp.content, status_code=rp.status_code, media_type="text/html")
+    except Exception as e:
+        return Response(content=str(e), status_code=502)
+
 @app.get("/{full_path:path}")
 async def serve_spa(full_path: str):
     file_path = os.path.join(DIST_DIR, full_path)
