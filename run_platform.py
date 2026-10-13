@@ -34,23 +34,16 @@ def update_env(domain):
 def main():
     log("Starting English Teacher Platform Supervisor...")
 
-    # 1. Start FastAPI backend (port 8000)
-    backend_proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"],
-        cwd=BACKEND_DIR
-    )
-    log(f"FastAPI backend started (PID {backend_proc.pid}) on http://127.0.0.1:8000")
-
-    # 2. Start frontend production server (port 5173)
+    # 1. Start frontend production server (port 5173)
     frontend_proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "frontend_server:app", "--host", "0.0.0.0", "--port", "5173"],
         cwd=ROOT_DIR
     )
     log(f"Frontend server started (PID {frontend_proc.pid}) on http://0.0.0.0:5173")
 
-    time.sleep(2)
+    time.sleep(1)
 
-    # 3. Start cloudflared tunnel
+    # 2. Start cloudflared tunnel
     tunnel_proc = subprocess.Popen(
         [CLOUDFLARED, "tunnel", "--url", "http://127.0.0.1:5173"],
         cwd=ROOT_DIR,
@@ -63,23 +56,63 @@ def main():
 
     active_domain = None
 
-    # Stream tunnel output to find trycloudflare.com
+    # Read tunnel output until active_domain is captured
     for line in iter(tunnel_proc.stdout.readline, ""):
         sys.stdout.write(line)
         sys.stdout.flush()
         m = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", line)
-        if m and not active_domain:
+        if m:
             active_domain = m.group(0)
-            log("=" * 60)
-            log(f"ACTIVE PRODUCTION DOMAIN: {active_domain}")
-            log(f"Student WebApp:  {active_domain}/app")
-            log(f"Teacher WebApp:  {active_domain}/admin")
-            log("=" * 60)
-            update_env(active_domain)
+            break
 
-    tunnel_proc.wait()
-    backend_proc.terminate()
-    frontend_proc.terminate()
+    if not active_domain:
+        log("ERROR: Could not obtain Cloudflare Tunnel domain!")
+        tunnel_proc.terminate()
+        frontend_proc.terminate()
+        return
+
+    log("=" * 60)
+    log(f"ACTIVE PRODUCTION DOMAIN: {active_domain}")
+    log(f"Student WebApp:  {active_domain}/app")
+    log(f"Teacher WebApp:  {active_domain}/admin")
+    log("=" * 60)
+
+    # Update .env
+    update_env(active_domain)
+
+    # 3. Start FastAPI backend (port 8000) WITH fresh domain in env
+    backend_env = os.environ.copy()
+    backend_env["BASE_URL"] = active_domain
+    backend_env["BACKEND_URL"] = active_domain
+    backend_env["WEBAPP_URL"] = active_domain
+    backend_env["STUDENT_WEBAPP_URL"] = f"{active_domain}/app"
+    backend_env["ADMIN_WEBAPP_URL"] = f"{active_domain}/admin"
+    backend_env["ADMIN_PANEL_URL"] = f"{active_domain}/admin"
+
+    backend_proc = subprocess.Popen(
+        [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000"],
+        cwd=BACKEND_DIR,
+        env=backend_env
+    )
+    log(f"FastAPI backend started (PID {backend_proc.pid}) on http://127.0.0.1:8000")
+
+    # Continue streaming tunnel logs in background
+    def stream_tunnel():
+        for line in iter(tunnel_proc.stdout.readline, ""):
+            sys.stdout.write(line)
+            sys.stdout.flush()
+
+    t = threading.Thread(target=stream_tunnel, daemon=True)
+    t.start()
+
+    try:
+        tunnel_proc.wait()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        log("Stopping services...")
+        backend_proc.terminate()
+        frontend_proc.terminate()
 
 if __name__ == "__main__":
     main()

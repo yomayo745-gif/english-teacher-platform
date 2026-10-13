@@ -33,6 +33,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 2500);
 
     try {
+      // 0. Support magic login token from URL query (for Teacher PC full screen browser access)
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryToken = urlParams.get('token');
+      if (queryToken) {
+        api.setToken(queryToken);
+      }
+
       const tg = (window as any).Telegram?.WebApp;
       if (tg) {
         setIsTelegram(true);
