@@ -11,6 +11,7 @@ class User(Base):
     telegram_id = Column(BigInteger, unique=True, nullable=True, index=True)
     login = Column(String(100), unique=True, nullable=True, index=True)
     password_hash = Column(String(255), nullable=True)
+    initial_password = Column(String(255), nullable=True)
     username = Column(String(255), nullable=True, index=True)
     first_name = Column(String(255), nullable=False)
     last_name = Column(String(255), nullable=True)

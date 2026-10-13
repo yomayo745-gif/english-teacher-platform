@@ -57,6 +57,17 @@ export const TeacherStudentsList: React.FC = () => {
     plain_password: string;
   } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedStudentId, setCopiedStudentId] = useState<string | null>(null);
+
+  const handleCopyStudentCreds = (stu: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const password = stu.initial_password || 'Pass2026!';
+    const login = stu.login || stu.username;
+    const text = `🎓 English Hub O‘quvchi Hisobi:\n\n👤 Ism: ${stu.full_name}\n🆔 Login: ${login}\n🔑 Parol: ${password}\n🤖 Bot: @testuchunv2bot\n\nKirish: ${window.location.origin}`;
+    navigator.clipboard.writeText(text);
+    setCopiedStudentId(stu.id);
+    setTimeout(() => setCopiedStudentId(null), 2500);
+  };
 
   const fetchStudents = async () => {
     setIsLoading(true);
@@ -246,6 +257,7 @@ export const TeacherStudentsList: React.FC = () => {
             <thead className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
               <tr>
                 <th className="py-3.5 px-4">{t('admin.studentColumn', true)}</th>
+                <th className="py-3.5 px-4">Login & Parol</th>
                 <th className="py-3.5 px-4">{t('admin.statusColumn', true)}</th>
                 <th className="py-3.5 px-4">{t('admin.telegramIdColumn', true)}</th>
                 <th className="py-3.5 px-4">{t('admin.groupColumn', true)}</th>
@@ -261,9 +273,41 @@ export const TeacherStudentsList: React.FC = () => {
                   <tr key={stu.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="py-3.5 px-4">
                       <div className="font-semibold text-slate-900">{stu.full_name}</div>
-                      <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1.5">
-                        <span className="text-brand-600 font-bold">@{stu.login || stu.username || 'no_login'}</span>
-                        {stu.phone && <span className="text-slate-400">• {stu.phone}</span>}
+                      {stu.phone && <div className="text-[11px] text-slate-400 mt-0.5">{stu.phone}</div>}
+                    </td>
+
+                    <td className="py-3.5 px-4">
+                      <div className="flex flex-col gap-1 items-start">
+                        <div className="inline-flex items-center gap-1.5 font-mono text-[11px] bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">
+                          <span className="text-slate-400 font-sans text-[10px]">Login:</span>
+                          <span className="text-brand-600 font-bold">{stu.login || stu.username || 'no_login'}</span>
+                        </div>
+                        <div className="inline-flex items-center gap-1.5 font-mono text-[11px] bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md">
+                          <span className="text-slate-400 font-sans text-[10px]">Parol:</span>
+                          <span className="text-indigo-600 font-bold">{stu.initial_password || 'Pass2026!'}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => handleCopyStudentCreds(stu, e)}
+                          className={`mt-0.5 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-bold transition-all ${
+                            copiedStudentId === stu.id
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                              : 'bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200'
+                          }`}
+                          title="Login va parolni nusxalash"
+                        >
+                          {copiedStudentId === stu.id ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              <span>Nusxalandi!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span>Nusxalash</span>
+                            </>
+                          )}
+                        </button>
                       </div>
                     </td>
 

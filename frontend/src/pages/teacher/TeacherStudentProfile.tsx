@@ -39,6 +39,17 @@ export const TeacherStudentProfile: React.FC = () => {
   const [newGeneratedPassword, setNewGeneratedPassword] = useState<string | null>(null);
   const [customPasswordInput, setCustomPasswordInput] = useState('');
   const [copiedReset, setCopiedReset] = useState(false);
+  const [copiedProfileCreds, setCopiedProfileCreds] = useState(false);
+
+  const handleCopyProfileCreds = () => {
+    if (!data?.student) return;
+    const password = data.student.initial_password || 'Pass2026!';
+    const login = data.student.login || data.student.username;
+    const text = `🎓 English Hub O‘quvchi Hisobi:\n\n👤 Ism: ${data.student.full_name}\n🆔 Login: ${login}\n🔑 Parol: ${password}\n🤖 Bot: @testuchunv2bot\n\nKirish: ${window.location.origin}`;
+    navigator.clipboard.writeText(text);
+    setCopiedProfileCreds(true);
+    setTimeout(() => setCopiedProfileCreds(false), 2500);
+  };
 
   // Edit Profile Modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -243,8 +254,33 @@ export const TeacherStudentProfile: React.FC = () => {
 
               <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-slate-500 font-medium">
                 <span className="font-mono text-brand-700 font-bold bg-brand-50 px-2 py-0.5 rounded-md border border-brand-100">
-                  @{student.login || student.username || 'no_login'}
+                  Login: @{student.login || student.username || 'no_login'}
                 </span>
+                <span className="font-mono text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                  Parol: {student.initial_password || 'Pass2026!'}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyProfileCreds}
+                  className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md font-bold transition-all ${
+                    copiedProfileCreds
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                      : 'bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200'
+                  }`}
+                  title="O‘quvchiga yuborish uchun login va parolni nusxalash"
+                >
+                  {copiedProfileCreds ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Nusxalandi!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Hisobni nusxalash</span>
+                    </>
+                  )}
+                </button>
                 {student.telegram_id && (
                   <span className="font-mono text-slate-500">ID: {student.telegram_id}</span>
                 )}

@@ -240,15 +240,17 @@ async def student_login(
         tg_user = verify_telegram_init_data(req.telegram_init_data, settings.TELEGRAM_BOT_TOKEN)
         if tg_user and "id" in tg_user:
             tg_id = tg_user["id"]
-            existing_tg_res = await db.execute(
-                select(User).where(and_(User.telegram_id == tg_id, User.id != user.id))
+            # Detach this telegram_id from any other student accounts so user can cleanly switch accounts
+            from sqlalchemy import update
+            await db.execute(
+                update(User)
+                .where(and_(User.telegram_id == tg_id, User.id != user.id, User.role == "STUDENT"))
+                .values(telegram_id=None)
             )
-            existing_tg = existing_tg_res.scalar_one_or_none()
-            if not existing_tg:
-                user.telegram_id = tg_id
-                if tg_user.get("username"):
-                    user.username = tg_user["username"]
-                logger.info(f"Linked Telegram account {tg_id} to student {user.id}")
+            user.telegram_id = tg_id
+            if tg_user.get("username"):
+                user.username = tg_user["username"]
+            logger.info(f"Linked Telegram account {tg_id} to student {user.id} ({user.login})")
 
     # Success: clear rate limit, update last login
     clear_failed_logins(rate_key)
@@ -317,3 +319,23 @@ async def check_telegram_account(req: TelegramCheckRequest, db: AsyncSession = D
         "token_type": "bearer",
         "user": UserResponse.model_validate(user)
     }
+
+@router.post("/logout")
+async def logout_student(req: TelegramCheckRequest, db: AsyncSession = Depends(get_db)):
+    """
+    Explicit student logout: unlinks the student account from this Telegram ID
+    so that upon refreshing, the user sees the login screen and can log in with any account.
+    """
+    if req.init_data:
+        tg_user = verify_telegram_init_data(req.init_data, settings.TELEGRAM_BOT_TOKEN)
+        if tg_user and "id" in tg_user:
+            from sqlalchemy import update
+            tg_id = tg_user["id"]
+            await db.execute(
+                update(User)
+                .where(and_(User.telegram_id == tg_id, User.role == "STUDENT"))
+                .values(telegram_id=None)
+            )
+            await db.commit()
+    return {"status": "logged_out"}
+

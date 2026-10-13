@@ -32,11 +32,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
     }, 2500);
 
+    // Check if user explicitly logged out
+    const explicitLogout = localStorage.getItem('explicit_logout');
+    if (explicitLogout === 'true') {
+      api.setToken(null);
+      setUser(null);
+      setIsLoading(false);
+      clearTimeout(timer);
+      return;
+    }
+
     try {
       // 0. Support magic login token from URL query (for Teacher PC full screen browser access)
       const urlParams = new URLSearchParams(window.location.search);
       const queryToken = urlParams.get('token');
       if (queryToken) {
+        localStorage.removeItem('explicit_logout');
         api.setToken(queryToken);
       }
 
@@ -113,6 +124,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const studentLogin = async (login: string, password: string) => {
+    localStorage.removeItem('explicit_logout');
     const tg = (window as any).Telegram?.WebApp;
     const tgInitData = (tg && tg.initData && tg.initData.length > 0) ? tg.initData : undefined;
     const res = await api.studentLogin(login, password, tgInitData);
@@ -120,6 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const loginAs = async (targetRole: UserRole, name?: string) => {
+    localStorage.removeItem('explicit_logout');
     setIsLoading(true);
     try {
       const defaultName = name || (targetRole === 'STUDENT' ? 'Jasur Aliyev' : 'Teacher Bahrom');
@@ -132,8 +145,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const logout = () => {
-    api.setToken(null);
+  const logout = async () => {
+    localStorage.setItem('explicit_logout', 'true');
+    const tg = (window as any).Telegram?.WebApp;
+    const tgInitData = (tg && tg.initData && tg.initData.length > 0) ? tg.initData : undefined;
+    await api.logout(tgInitData);
     setUser(null);
   };
 

@@ -117,6 +117,20 @@ class ApiClient {
     });
   }
 
+  async logout(initData?: string) {
+    try {
+      if (initData) {
+        await this.request('/auth/logout', {
+          method: 'POST',
+          body: JSON.stringify({ init_data: initData }),
+        });
+      }
+    } catch {
+      // Ignore network errors on logout
+    }
+    this.setToken(null);
+  }
+
   async telegramAuth(initData: string) {
     const res = await this.request<{ access_token: string; user: any }>('/auth/telegram', {
       method: 'POST',

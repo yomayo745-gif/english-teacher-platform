@@ -1014,6 +1014,7 @@ async def list_students(
         items.append({
             "id": stu.id,
             "login": stu.login,
+            "initial_password": stu.initial_password or "Pass2026!",
             "telegram_id": stu.telegram_id,
             "full_name": stu.full_name,
             "first_name": stu.first_name,
@@ -1104,6 +1105,7 @@ async def create_student(
         id=str(uuid.uuid4()),
         login=login_clean,
         password_hash=hashed_pwd,
+        initial_password=plain_password,
         username=login_clean,
         first_name=first_name,
         last_name=payload.last_name.strip() if payload.last_name else None,
@@ -1250,6 +1252,7 @@ async def reset_student_password(
 
     new_pwd = payload.password.strip() if (payload.password and payload.password.strip()) else generate_random_password(8)
     student.password_hash = hash_password(new_pwd)
+    student.initial_password = new_pwd
     await db.commit()
 
     await log_action(
@@ -1352,6 +1355,7 @@ async def get_student_profile(
         "student": {
             "id": stu.id,
             "login": stu.login,
+            "initial_password": stu.initial_password or "Pass2026!",
             "status": stu.status or "ACTIVE",
             "telegram_id": stu.telegram_id,
             "full_name": stu.full_name,
