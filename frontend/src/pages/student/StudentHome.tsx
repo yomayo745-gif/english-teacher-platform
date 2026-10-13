@@ -91,25 +91,6 @@ export const StudentHome: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Daily Practice Goal Banner */}
-      <div className="bg-gradient-to-r from-brand-600 via-indigo-600 to-indigo-700 text-white rounded-2xl p-4 sm:p-5 shadow-sm space-y-2 relative overflow-hidden">
-        <div className="absolute right-2 -bottom-2 opacity-10">
-          <Target className="w-28 h-28" />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-extrabold uppercase tracking-wider backdrop-blur-xs flex items-center gap-1">
-            <Zap className="w-3 h-3 text-amber-300" />
-            Kunlik Maqsad
-          </span>
-          <span className="text-xs text-white/80 font-medium">• 2-3 Soatlik Amaliyot</span>
-        </div>
-        <h3 className="text-sm sm:text-base font-bold text-white leading-snug">
-          Oflayn darsda o‘tilgan mavzuni mustahkamlash
-        </h3>
-        <p className="text-xs text-white/90 leading-relaxed max-w-sm">
-          Lug‘at, grammatika, o‘qish, insho va audio mashqlarni to‘liq ishlab chiqing. Javoblaringiz avtomatik saqlanib boradi!
-        </p>
-      </div>
 
       {/* 4. Active Homework Section */}
       <div>
