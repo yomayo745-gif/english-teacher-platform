@@ -14,6 +14,9 @@ class Settings(BaseSettings):
         extra="ignore"
     )
 
+    # Base directory
+    BASE_DIR: Path = BASE_DIR
+
     # Application
     APP_NAME: str = "English Teacher Homework Platform"
     APP_ENV: str = "development"
